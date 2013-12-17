@@ -5,22 +5,42 @@ require 'nokogiri'
 require './lib/yearinhatena.rb'
 require 'net/http'
 require 'uri'
+require 'date'
+require 'csv'
 
 class YearInHatenaCLI < Thor
 	desc "fetch TAG", "get entry for tag specified."
-	def fetch(tag_name)
+	def fetch(tag_name, users = 100, year = 2013)
 
-		doc = Nokogiri::HTML(Net::HTTP.get(URI.parse("http://b.hatena.ne.jp/search/tag?safe=off&q=#{tag_name}&users=100&of=120")))
-		doc.css('li.search-result').each do |node|
-			a = node.xpath('h3/a').first
-			p a.text
-			p a["href"]
-			users = node.xpath('span/strong/a/span')
-			p users.text
-			created = node.xpath('div/blockquote/span')
-			p created.text.strip
+		results = []
+		for i in 0..20 do
+			of = i * 40
+			doc = Nokogiri::HTML(Net::HTTP.get(URI.parse("http://b.hatena.ne.jp/search/tag?safe=off&q=#{tag_name}&users=#{users}&of=#{of}")))
+			doc.css('li.search-result').each do |node|
+				created = node.xpath('div/blockquote/span')
+				date = DateTime._strptime(created.text.strip, '%Y/%m/%d')
+				if date[:year] != year then
+					break
+				end
+
+				a = node.xpath('h3/a').first
+				users_num = node.xpath('span/strong/a/span')
+				row = {
+					'title' => a['title'],
+					'url' => a["href"],
+					'users' => users_num.text,
+					'created' => created.text.strip
+ 				}
+				results.push row
+			end
 		end
 
+		csv_string = CSV.generate do |csv|
+			results.each do |line|
+				csv << line.values
+			end
+		end
+		puts csv_string
 	end
 end
 
