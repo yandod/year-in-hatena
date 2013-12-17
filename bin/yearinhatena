@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+
+require 'thor'
+require 'nokogiri'
+require './lib/yearinhatena.rb'
+require 'net/http'
+require 'uri'
+
+class YearInHatenaCLI < Thor
+	desc "fetch TAG", "get entry for tag specified."
+	def fetch(tag_name)
+
+		doc = Nokogiri::HTML(Net::HTTP.get(URI.parse("http://b.hatena.ne.jp/search/tag?safe=off&q=#{tag_name}&users=100&of=120")))
+		doc.css('li.search-result').each do |node|
+			a = node.xpath('h3/a').first
+			p a.text
+			p a["href"]
+			users = node.xpath('span/strong/a/span')
+			p users.text
+			created = node.xpath('div/blockquote/span')
+			p created.text.strip
+		end
+
+	end
+end
+
+YearInHatenaCLI.start(ARGV)
